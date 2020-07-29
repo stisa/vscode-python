@@ -1,7 +1,7 @@
 import { inject, injectable } from 'inversify';
 import { IDisposable } from 'monaco-editor';
 import * as uuid from 'uuid/v4';
-import { Event, EventEmitter, Position, Uri, ViewColumn } from 'vscode';
+import { Event, EventEmitter, Position, StatusBarItem, Uri, ViewColumn } from 'vscode';
 import { createMarkdownCell } from '../../../datascience-ui/common/cellFactory';
 import { IApplicationShell, IDocumentManager } from '../../common/application/types';
 import { PYTHON_LANGUAGE } from '../../common/constants';
@@ -9,7 +9,7 @@ import { traceError } from '../../common/logger';
 
 import { IConfigurationService, Resource } from '../../common/types';
 import * as localize from '../../common/utils/localize';
-import { noop } from '../../common/utils/misc';
+// import { noop } from '../../common/utils/misc';
 import { StopWatch } from '../../common/utils/stopWatch';
 import { sendTelemetryEvent } from '../../telemetry';
 import { generateCellsFromString } from '../cellFactory';
@@ -45,6 +45,7 @@ export class GatherListener implements IInteractiveWindowListener {
     private gatherTimer: StopWatch | undefined;
     private linesSubmitted: number = 0;
     private cellsSubmitted: number = 0;
+    private statusBar: StatusBarItem;
 
     constructor(
         @inject(IApplicationShell) private applicationShell: IApplicationShell,
@@ -54,10 +55,14 @@ export class GatherListener implements IInteractiveWindowListener {
         @inject(IConfigurationService) private configService: IConfigurationService,
         @inject(IDocumentManager) private documentManager: IDocumentManager,
         @inject(IDataScienceFileSystem) private fs: IDataScienceFileSystem
-    ) {}
+    ) {
+        this.statusBar = this.applicationShell.createStatusBarItem();
+        this.statusBar.text = '$(sync~spin) Gathering Code';
+    }
 
     public dispose() {
-        noop();
+        // noop();
+        this.statusBar.dispose();
     }
 
     // tslint:disable-next-line: no-any
@@ -73,10 +78,12 @@ export class GatherListener implements IInteractiveWindowListener {
                 break;
 
             case InteractiveWindowMessages.GatherCode:
+                this.statusBar.show();
                 this.handleMessage(message, payload, this.doGather);
                 break;
 
             case InteractiveWindowMessages.GatherCodeToScript:
+                this.statusBar.show();
                 this.handleMessage(message, payload, this.doGatherToScript);
                 break;
 
@@ -141,18 +148,24 @@ export class GatherListener implements IInteractiveWindowListener {
         }
     }
 
-    private doGather(payload: ICell): void {
-        this.gatherCodeInternal(payload).catch((err) => {
-            traceError(`Gather to Notebook error: ${err}`);
-            this.applicationShell.showErrorMessage(err);
-        });
+    private doGather(payload: ICell): Promise<void> {
+        return this.gatherCodeInternal(payload)
+            .catch((err) => {
+                traceError(`Gather to Notebook error: ${err}`);
+                this.applicationShell.showErrorMessage(err);
+            })
+            .finally(() => {
+                this.statusBar.hide();
+            });
     }
 
-    private doGatherToScript(payload: ICell): void {
-        this.gatherCodeInternal(payload, true).catch((err) => {
-            traceError(`Gather to Script error: ${err}`);
-            this.applicationShell.showErrorMessage(err);
-        });
+    private doGatherToScript(payload: ICell): Promise<void> {
+        return this.gatherCodeInternal(payload, true)
+            .catch((err) => {
+                traceError(`Gather to Script error: ${err}`);
+                this.applicationShell.showErrorMessage(err);
+            })
+            .finally(() => this.statusBar.hide());
     }
 
     private gatherCodeInternal = async (cell: ICell, toScript: boolean = false) => {
