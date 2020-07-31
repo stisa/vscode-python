@@ -77,12 +77,16 @@ export class GatherListener implements IInteractiveWindowListener {
                 break;
 
             case InteractiveWindowMessages.GatherCode:
-                this.statusBar.show();
+                setTimeout(() => {
+                    this.statusBar.show();
+                }, 2000);
                 this.handleMessage(message, payload, this.doGather);
                 break;
 
             case InteractiveWindowMessages.GatherCodeToScript:
-                this.statusBar.show();
+                setTimeout(() => {
+                    this.statusBar.show();
+                }, 2000);
                 this.handleMessage(message, payload, this.doGatherToScript);
                 break;
 
