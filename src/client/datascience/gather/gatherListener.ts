@@ -10,7 +10,6 @@ import { traceError } from '../../common/logger';
 import type { nbformat } from '@jupyterlab/coreutils';
 import { IConfigurationService, Resource } from '../../common/types';
 import * as localize from '../../common/utils/localize';
-// import { noop } from '../../common/utils/misc';
 import { StopWatch } from '../../common/utils/stopWatch';
 import { sendTelemetryEvent } from '../../telemetry';
 import { generateCellsFromString } from '../cellFactory';
@@ -58,11 +57,10 @@ export class GatherListener implements IInteractiveWindowListener {
         @inject(IDataScienceFileSystem) private fs: IDataScienceFileSystem
     ) {
         this.statusBar = this.applicationShell.createStatusBarItem();
-        this.statusBar.text = '$(sync~spin) Gathering Code';
+        this.statusBar.text = localize.DataScience.gatherStatusBar();
     }
 
     public dispose() {
-        // noop();
         this.statusBar.dispose();
     }
 
@@ -155,9 +153,7 @@ export class GatherListener implements IInteractiveWindowListener {
                 traceError(`Gather to Notebook error: ${err}`);
                 this.applicationShell.showErrorMessage(err);
             })
-            .finally(() => {
-                this.statusBar.hide();
-            });
+            .finally(() => this.statusBar.hide());
     }
 
     private doGatherToScript(payload: ICell): Promise<void> {
