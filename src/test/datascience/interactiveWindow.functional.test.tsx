@@ -10,6 +10,7 @@ import * as TypeMoq from 'typemoq';
 import { Disposable, Memento, Selection, TextDocument, TextEditor, Uri } from 'vscode';
 
 import { ReactWrapper } from 'enzyme';
+import { anything, when } from 'ts-mockito';
 import { IApplicationShell, IDocumentManager } from '../../client/common/application/types';
 import { GLOBAL_MEMENTO, IDataScienceSettings, IMemento } from '../../client/common/types';
 import { createDeferred, sleep, waitForPromise } from '../../client/common/utils/async';
@@ -73,7 +74,6 @@ suite('DataScience Interactive Window output tests', () => {
     suiteSetup(() => {
         snapshot = takeSnapshot();
     });
-
     setup(async () => {
         ioc = new DataScienceIocContainer();
         ioc.registerDataScienceTypes();
@@ -711,7 +711,7 @@ for i in range(0, 100):
                 // Then open a second time and make sure it uses this new path
                 const secondPath = await interpreterService.getActiveInterpreter(secondUri);
                 assert.notEqual(secondPath?.path, activeInterpreter?.path, 'Second path was not set');
-                const newWindow = (await interactiveWindowProvider.getOrCreate(undefined)) as InteractiveWindow;
+                const newWindow = (await interactiveWindowProvider.getOrCreate(secondUri)) as InteractiveWindow;
                 await addCode(ioc, 'a=1\na', false, secondUri);
                 assert.notEqual(
                     newWindow.notebook!.getMatchingInterpreter()?.path,
@@ -1147,14 +1147,7 @@ for i in range(0, 100):
     runTest(
         'Type in input',
         async () => {
-            const appShell = TypeMoq.Mock.ofType<IApplicationShell>();
-            appShell
-                .setup((a) => a.showInputBox(TypeMoq.It.isAny()))
-                .returns(() => {
-                    return Promise.resolve('typed input');
-                });
-            ioc.serviceManager.rebindInstance<IApplicationShell>(IApplicationShell, appShell.object);
-
+            when(ioc.applicationShell.showInputBox(anything())).thenReturn(Promise.resolve('typed input'));
             // Send in some special input
             const code = `b = input('Test')\nb`;
             addInputMockData(ioc, code, 'typed input');

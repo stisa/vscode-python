@@ -124,7 +124,7 @@ import { HttpClient } from '../../client/common/net/httpClient';
 import { IS_WINDOWS } from '../../client/common/platform/constants';
 import { PathUtils } from '../../client/common/platform/pathUtils';
 import { RegistryImplementation } from '../../client/common/platform/registry';
-import { IFileSystem, IRegistry } from '../../client/common/platform/types';
+import { IRegistry } from '../../client/common/platform/types';
 import { CurrentProcess } from '../../client/common/process/currentProcess';
 import { BufferDecoder } from '../../client/common/process/decoder';
 import { ProcessLogger } from '../../client/common/process/logger';
@@ -226,12 +226,7 @@ import { AutoSaveService } from '../../client/datascience/interactive-ipynb/auto
 import { DigestStorage } from '../../client/datascience/interactive-ipynb/digestStorage';
 import { NativeEditorCommandListener } from '../../client/datascience/interactive-ipynb/nativeEditorCommandListener';
 import { NativeEditorRunByLineListener } from '../../client/datascience/interactive-ipynb/nativeEditorRunByLineListener';
-import { NativeEditorStorage } from '../../client/datascience/interactive-ipynb/nativeEditorStorage';
 import { NativeEditorSynchronizer } from '../../client/datascience/interactive-ipynb/nativeEditorSynchronizer';
-import {
-    INotebookStorageProvider,
-    NotebookStorageProvider
-} from '../../client/datascience/interactive-ipynb/notebookStorageProvider';
 import { TrustService } from '../../client/datascience/interactive-ipynb/trustService';
 import { InteractiveWindowCommandListener } from '../../client/datascience/interactive-window/interactiveWindowCommandListener';
 import { IPyWidgetHandler } from '../../client/datascience/ipywidgets/ipywidgetHandler';
@@ -275,6 +270,11 @@ import { KernelLauncher } from '../../client/datascience/kernel-launcher/kernelL
 import { IKernelFinder, IKernelLauncher } from '../../client/datascience/kernel-launcher/types';
 import { NotebookAndInteractiveWindowUsageTracker } from '../../client/datascience/notebookAndInteractiveTracker';
 import { NotebookModelFactory } from '../../client/datascience/notebookStorage/factory';
+import { NativeEditorStorage } from '../../client/datascience/notebookStorage/nativeEditorStorage';
+import {
+    INotebookStorageProvider,
+    NotebookStorageProvider
+} from '../../client/datascience/notebookStorage/notebookStorageProvider';
 import { INotebookModelFactory } from '../../client/datascience/notebookStorage/types';
 import { PlotViewer } from '../../client/datascience/plotting/plotViewer';
 import { PlotViewerProvider } from '../../client/datascience/plotting/plotViewerProvider';
@@ -293,6 +293,7 @@ import {
     IDataScienceCodeLensProvider,
     IDataScienceCommandListener,
     IDataScienceErrorHandler,
+    IDataScienceFileSystem,
     IDebugLocationTracker,
     IDigestStorage,
     IGatherLogger,
@@ -596,7 +597,7 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         this.serviceManager.addSingleton<INotebookModelFactory>(INotebookModelFactory, NotebookModelFactory);
         this.serviceManager.addSingleton<IMountedWebViewFactory>(IMountedWebViewFactory, MountedWebViewFactory);
         this.registerFileSystemTypes();
-        this.serviceManager.rebindInstance<IFileSystem>(IFileSystem, new MockFileSystem());
+        this.serviceManager.addSingletonInstance<IDataScienceFileSystem>(IDataScienceFileSystem, new MockFileSystem());
         this.serviceManager.addSingleton<IJupyterExecution>(IJupyterExecution, JupyterExecutionFactory);
         this.serviceManager.addSingleton<IInteractiveWindowProvider>(
             IInteractiveWindowProvider,
@@ -925,8 +926,13 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         when(experimentManager.inExperiment(anything())).thenCall((exp) => {
             const setState = this.experimentState.get(exp);
             if (setState === undefined) {
-                // Default to true if not the zmq kernel
-                return exp !== LocalZMQKernel.experiment;
+                if (this.shouldMockJupyter) {
+                    // RawKernel doesn't currently have a mock layer
+                    return exp !== LocalZMQKernel.experiment;
+                } else {
+                    // All experiments to true by default if not mocking jupyter
+                    return true;
+                }
             }
             return setState;
         });
@@ -1180,6 +1186,7 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
             };
         };
         when(this.applicationShell.onDidChangeWindowState).thenReturn(eventCallback);
+        when(this.applicationShell.withProgress(anything(), anything())).thenCall((_o, c) => c());
 
         const interpreterManager = this.serviceContainer.get<IInterpreterService>(IInterpreterService);
         interpreterManager.initialize();
@@ -1194,7 +1201,7 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         );
     }
     public setFileContents(uri: Uri, contents: string) {
-        const fileSystem = this.serviceManager.get<IFileSystem>(IFileSystem) as MockFileSystem;
+        const fileSystem = this.serviceManager.get<IDataScienceFileSystem>(IDataScienceFileSystem) as MockFileSystem;
         fileSystem.addFileContents(uri.fsPath, contents);
     }
 

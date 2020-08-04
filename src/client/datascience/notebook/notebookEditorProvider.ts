@@ -6,31 +6,27 @@
 import { inject, injectable } from 'inversify';
 import { Event, EventEmitter, Uri } from 'vscode';
 import type { NotebookDocument, NotebookEditor as VSCodeNotebookEditor } from 'vscode-proposed';
-import {
-    IApplicationShell,
-    ICommandManager,
-    IVSCodeNotebook,
-    NotebookCellLanguageChangeEvent,
-    NotebookCellOutputsChangeEvent,
-    NotebookCellsChangeEvent
-} from '../../common/application/types';
-import { UseVSCodeNotebookEditorApi } from '../../common/constants';
+import { IApplicationShell, ICommandManager, IVSCodeNotebook } from '../../common/application/types';
 import '../../common/extensions';
-import { IFileSystem } from '../../common/platform/types';
+
 import { IConfigurationService, IDisposableRegistry } from '../../common/types';
 import { createDeferred, Deferred } from '../../common/utils/async';
 import { IServiceContainer } from '../../ioc/types';
 import { captureTelemetry, setSharedProperty } from '../../telemetry';
 import { Commands, Telemetry } from '../constants';
-import { INotebookStorageProvider } from '../interactive-ipynb/notebookStorageProvider';
+import { INotebookStorageProvider } from '../notebookStorage/notebookStorageProvider';
 import { VSCodeNotebookModel } from '../notebookStorage/vscNotebookModel';
-import { INotebookEditor, INotebookEditorProvider, INotebookProvider, IStatusProvider } from '../types';
+import {
+    IDataScienceFileSystem,
+    INotebookEditor,
+    INotebookEditorProvider,
+    INotebookProvider,
+    IStatusProvider
+} from '../types';
 import { JupyterNotebookView } from './constants';
-import { mapVSCNotebookCellsToNotebookCellModels } from './helpers/cellMappers';
-import { updateCellModelWithChangesToVSCCell } from './helpers/cellUpdateHelpers';
 import { isJupyterNotebook } from './helpers/helpers';
 import { NotebookEditor } from './notebookEditor';
-import { INotebookContentProvider, INotebookExecutionService } from './types';
+import { INotebookExecutionService } from './types';
 
 /**
  * Notebook Editor provider used by other parts of DS code.
@@ -65,7 +61,6 @@ export class NotebookEditorProvider implements INotebookEditorProvider {
     private readonly notebooksWaitingToBeOpenedByUri = new Map<string, Deferred<INotebookEditor>>();
     constructor(
         @inject(IVSCodeNotebook) private readonly vscodeNotebook: IVSCodeNotebook,
-        @inject(INotebookContentProvider) private readonly contentProvider: INotebookContentProvider,
         @inject(INotebookStorageProvider) private readonly storage: INotebookStorageProvider,
         @inject(ICommandManager) private readonly commandManager: ICommandManager,
         @inject(IDisposableRegistry) private readonly disposables: IDisposableRegistry,
@@ -73,35 +68,19 @@ export class NotebookEditorProvider implements INotebookEditorProvider {
         @inject(IApplicationShell) private readonly appShell: IApplicationShell,
         @inject(IStatusProvider) private readonly statusProvider: IStatusProvider,
         @inject(IServiceContainer) private readonly serviceContainer: IServiceContainer,
-        @inject(UseVSCodeNotebookEditorApi) useVSCodeNotebookEditorApi: boolean,
-        @inject(IFileSystem) private readonly fileSystem: IFileSystem
+        @inject(IDataScienceFileSystem) private readonly fs: IDataScienceFileSystem
     ) {
         this.disposables.push(this.vscodeNotebook.onDidOpenNotebookDocument(this.onDidOpenNotebookDocument, this));
+        this.disposables.push(this.vscodeNotebook.onDidCloseNotebookDocument(this.onDidCloseNotebookDocument, this));
         this.disposables.push(
             this.vscodeNotebook.onDidChangeActiveNotebookEditor(this.onDidChangeActiveVsCodeNotebookEditor, this)
         );
-        this.disposables.push(this.vscodeNotebook.onDidChangeNotebookDocument(this.onDidChangeNotebookDocument, this));
         this.disposables.push(
             this.commandManager.registerCommand(Commands.OpenNotebookInPreviewEditor, async (uri?: Uri) => {
                 if (uri) {
                     setSharedProperty('ds_notebookeditor', 'native');
                     captureTelemetry(Telemetry.OpenNotebook, { scope: 'command' }, false);
                     this.open(uri).ignoreErrors();
-                }
-            })
-        );
-
-        // Swap the uris.
-        this.disposables.push(
-            this.storage.onSavedAs((e) => {
-                // We are interested in this ONLY if we have a VS Code NotebookEditor opened or if we belong to the nb experiment.
-                if (!useVSCodeNotebookEditorApi && !this.vscodeNotebook.notebookDocuments.length) {
-                    return;
-                }
-                const savedEditor = this.notebookEditorsByUri.get(e.old.toString());
-                if (savedEditor) {
-                    this.notebookEditorsByUri.delete(e.old.toString());
-                    this.notebookEditorsByUri.set(e.new.toString(), savedEditor);
                 }
             })
         );
@@ -149,7 +128,7 @@ export class NotebookEditorProvider implements INotebookEditorProvider {
 
             // Find all notebooks associated with this editor (ipynb file).
             const otherEditors = this.editors.filter(
-                (e) => this.fileSystem.arePathsSame(e.file.fsPath, editor.file.fsPath) && e !== editor
+                (e) => this.fs.areLocalPathsSame(e.file.fsPath, editor.file.fsPath) && e !== editor
             );
 
             // If we have no editors for this file, then dispose the notebook.
@@ -164,8 +143,10 @@ export class NotebookEditorProvider implements INotebookEditorProvider {
             return;
         }
         const uri = doc.uri;
-        const model = await this.storage.get(uri, undefined, undefined, true);
-        mapVSCNotebookCellsToNotebookCellModels(doc, model);
+        const model = await this.storage.getOrCreateModel(uri, undefined, undefined, true);
+        if (model instanceof VSCodeNotebookModel) {
+            model.associateNotebookDocument(doc);
+        }
         // In open method we might be waiting.
         let editor = this.notebookEditorsByUri.get(uri.toString());
         if (!editor) {
@@ -178,7 +159,6 @@ export class NotebookEditorProvider implements INotebookEditorProvider {
                 executionService,
                 this.commandManager,
                 notebookProvider,
-                this.contentProvider,
                 this.statusProvider,
                 this.appShell,
                 this.configurationService,
@@ -209,6 +189,23 @@ export class NotebookEditorProvider implements INotebookEditorProvider {
         this.trackedVSCodeNotebookEditors.add(editor);
         this.disposables.push(editor.onDidDispose(() => this.onDidDisposeVSCodeNotebookEditor(editor)));
     }
+    private async onDidCloseNotebookDocument(document: NotebookDocument) {
+        this.disposeResourceRelatedToNotebookEditor(document.uri);
+    }
+    private disposeResourceRelatedToNotebookEditor(uri: Uri) {
+        // Ok, dispose all of the resources associated with this document.
+        // In our case, we only have one editor.
+        const editor = this.notebookEditorsByUri.get(uri.toString());
+        if (editor) {
+            this.closedEditor(editor);
+            editor.dispose();
+            if (editor.model) {
+                editor.model.dispose();
+            }
+        }
+        this.notebookEditorsByUri.delete(uri.toString());
+        this.notebooksWaitingToBeOpenedByUri.delete(uri.toString());
+    }
     /**
      * We know a notebook editor has been closed.
      * We need to close/dispose all of our resources related to this notebook document.
@@ -224,33 +221,6 @@ export class NotebookEditorProvider implements INotebookEditorProvider {
         ) {
             return;
         }
-
-        // Ok, dispose all of the resources associated with this document.
-        // In our case, we only have one editor.
-        const editor = this.notebookEditorsByUri.get(uri.toString());
-        if (editor) {
-            this.closedEditor(editor);
-            editor.dispose();
-            if (editor.model) {
-                editor.model.dispose();
-            }
-        }
-        this.notebookEditorsByUri.delete(uri.toString());
-        this.notebooksWaitingToBeOpenedByUri.delete(uri.toString());
-    }
-    private async onDidChangeNotebookDocument(
-        e: NotebookCellsChangeEvent | NotebookCellOutputsChangeEvent | NotebookCellLanguageChangeEvent
-    ): Promise<void> {
-        if (!isJupyterNotebook(e.document)) {
-            return;
-        }
-        const model = await this.storage.get(e.document.uri, undefined, undefined, true);
-        if (!(model instanceof VSCodeNotebookModel)) {
-            throw new Error('NotebookModel not of type VSCodeNotebookModel');
-        }
-        if (updateCellModelWithChangesToVSCCell(e, model)) {
-            // If we have updated the notebook document, then trigger changes.
-            this.contentProvider.notifyChangesToDocument(e.document);
-        }
+        this.disposeResourceRelatedToNotebookEditor(closedEditor.document.uri);
     }
 }

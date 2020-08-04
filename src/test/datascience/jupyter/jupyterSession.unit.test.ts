@@ -72,6 +72,8 @@ suite('DataScience - JupyterSession', () => {
         kernelChangedSignal = mock(Signal);
         when(session.statusChanged).thenReturn(instance(statusChangedSignal));
         when(session.kernelChanged).thenReturn(instance(kernelChangedSignal));
+        when(session.kernel).thenReturn(instance(kernel));
+        when(kernel.status).thenReturn('idle');
         const channel = new MockOutputChannel('JUPYTER');
         // tslint:disable-next-line: no-any
         (instance(session) as any).then = undefined;
@@ -97,12 +99,12 @@ suite('DataScience - JupyterSession', () => {
         const nbFile = 'file path';
         // tslint:disable-next-line: no-any
         when(contentsManager.newUntitled(deepEqual({ type: 'notebook' }))).thenResolve({ path: nbFile } as any);
+        when(contentsManager.delete(anything())).thenResolve();
         when(sessionManager.startNew(anything())).thenResolve(instance(session));
         kernelSpec.setup((k) => k.name).returns(() => 'some name');
+        kernelSpec.setup((k) => k.id).returns(() => undefined);
 
-        await jupyterSession.connect();
-
-        verify(statusChangedSignal.connect(anything())).once();
+        await jupyterSession.connect(100);
     }
 
     test('Start a session when connecting', async () => {
@@ -132,20 +134,9 @@ suite('DataScience - JupyterSession', () => {
             verify(kernel.interrupt()).once();
         });
         suite('Shutdown', () => {
-            test('Remote', async () => {
+            test('Remote session', async () => {
                 connection.setup((c) => c.localLaunch).returns(() => false);
                 when(sessionManager.refreshRunning()).thenResolve();
-                when(contentsManager.delete(anything())).thenResolve();
-
-                await jupyterSession.shutdown();
-
-                verify(sessionManager.refreshRunning()).once();
-                verify(contentsManager.delete(anything())).once();
-            });
-            test('Remote sessions', async () => {
-                connection.setup((c) => c.localLaunch).returns(() => true);
-                when(sessionManager.refreshRunning()).thenResolve();
-                when(contentsManager.delete(anything())).thenResolve();
                 when(session.isRemoteSession).thenReturn(true);
                 when(session.shutdown()).thenResolve();
                 when(session.dispose()).thenReturn();
@@ -159,9 +150,7 @@ suite('DataScience - JupyterSession', () => {
                 // With remote sessions, we should not shut the session, but dispose it.
                 verify(session.dispose()).once();
             });
-            test('Local', async () => {
-                verify(statusChangedSignal.connect(anything())).once();
-
+            test('Local session', async () => {
                 connection.setup((c) => c.localLaunch).returns(() => true);
                 when(session.isRemoteSession).thenReturn(false);
                 when(session.isDisposed).thenReturn(false);
@@ -171,7 +160,6 @@ suite('DataScience - JupyterSession', () => {
 
                 verify(sessionManager.refreshRunning()).never();
                 verify(contentsManager.delete(anything())).never();
-                verify(statusChangedSignal.disconnect(anything())).once();
                 // always kill the sessions.
                 verify(session.shutdown()).once();
                 verify(session.dispose()).once();

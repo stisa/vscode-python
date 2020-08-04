@@ -1287,15 +1287,11 @@ export interface IEventNamePropertyMapping {
         lsVersion?: string;
     };
     /**
-     * Telemetry event sent when user specified None to the language server.
-     */
-    [EventName.PYTHON_LANGUAGE_SERVER_NONE]: never | undefined;
-    /**
-     * Telemetry sent from Language Server (details of telemetry sent can be provided by LS team)
+     * Telemetry sent from language server (details of telemetry sent can be provided by LS team)
      */
     [EventName.PYTHON_LANGUAGE_SERVER_TELEMETRY]: any;
     /**
-     * Telemetry sent when the client makes a request to the Language Server
+     * Telemetry sent when the client makes a request to the language server
      */
     [EventName.PYTHON_LANGUAGE_SERVER_REQUEST]: any;
     /**
@@ -1722,6 +1718,9 @@ export interface IEventNamePropertyMapping {
     [Telemetry.RestartJupyterTime]: never | undefined;
     [Telemetry.RestartKernel]: never | undefined;
     [Telemetry.RestartKernelCommand]: never | undefined;
+    /**
+     * Run Cell Commands in Interactive Python
+     */
     [Telemetry.RunAllCells]: never | undefined;
     [Telemetry.RunSelectionOrLine]: never | undefined;
     [Telemetry.RunCell]: never | undefined;
@@ -1733,6 +1732,26 @@ export interface IEventNamePropertyMapping {
     [Telemetry.RunFileInteractive]: never | undefined;
     [Telemetry.RunFromLine]: never | undefined;
     [Telemetry.ScrolledToCell]: never | undefined;
+    /**
+     * Cell Edit Commands in Interactive Python
+     */
+    [Telemetry.InsertCellBelowPosition]: never | undefined;
+    [Telemetry.InsertCellBelow]: never | undefined;
+    [Telemetry.InsertCellAbove]: never | undefined;
+    [Telemetry.DeleteCells]: never | undefined;
+    [Telemetry.SelectCell]: never | undefined;
+    [Telemetry.SelectCellContents]: never | undefined;
+    [Telemetry.ExtendSelectionByCellAbove]: never | undefined;
+    [Telemetry.ExtendSelectionByCellBelow]: never | undefined;
+    [Telemetry.MoveCellsUp]: never | undefined;
+    [Telemetry.MoveCellsDown]: never | undefined;
+    [Telemetry.ChangeCellToMarkdown]: never | undefined;
+    [Telemetry.ChangeCellToCode]: never | undefined;
+    /**
+     * Misc
+     */
+    [Telemetry.AddEmptyCellToBottom]: never | undefined;
+    [Telemetry.RunCurrentCellAndAddBelow]: never | undefined;
     [Telemetry.CellCount]: { count: number };
     [Telemetry.Save]: never | undefined;
     [Telemetry.SelfCertsMessageClose]: never | undefined;
@@ -2047,6 +2066,9 @@ export interface IEventNamePropertyMapping {
         linesGathered: number;
         cellsGathered: number;
     };
+    [Telemetry.GatherException]: {
+        exceptionType: 'activate' | 'gather' | 'log' | 'reset';
+    };
     /**
      * Telemetry event sent when a gathered notebook has been saved by the user.
      */
@@ -2218,4 +2240,7 @@ export interface IEventNamePropertyMapping {
     [VSCodeNativeTelemetry.ChangeToCode]: never | undefined;
     [VSCodeNativeTelemetry.ChangeToMarkdown]: never | undefined;
     [VSCodeNativeTelemetry.RunAllCells]: never | undefined;
+    [Telemetry.VSCNotebookCellTranslationFailed]: {
+        isErrorOutput: boolean; // Whether we're trying to translate an error output when we shuldn't be.
+    };
 }
