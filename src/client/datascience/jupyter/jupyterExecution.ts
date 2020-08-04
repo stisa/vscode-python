@@ -395,8 +395,6 @@ export class JupyterExecutionBase implements IJupyterExecution {
     private onSettingsChanged() {
         // Clear our usableJupyterInterpreter so that we recompute our values
         this.usablePythonInterpreter = undefined;
-
-        // Clear all timeouts
     }
 
     private extractJupyterServerHandleAndId(uri: string): { handle: JupyterServerUriHandle; id: string } | undefined {

@@ -15,6 +15,7 @@ class MockProvider implements IJupyterUriProvider {
     public get id() {
         return this._id;
     }
+    private currentBearer = 1;
     private result: string = '1';
     constructor(private readonly _id: string) {
         // Id should be readonly
@@ -30,11 +31,19 @@ class MockProvider implements IJupyterUriProvider {
     }
     public async getServerUri(handle: string): Promise<IJupyterServerUri> {
         if (handle === '1') {
+            const currentDate = new Date();
             return {
                 // tslint:disable-next-line: no-http-string
                 baseUrl: 'http://foobar:3000',
                 token: '',
-                authorizationHeader: { Bearer: '1' }
+                authorizationHeader: { Bearer: this.currentBearer.toString() },
+                expiration: new Date(
+                    currentDate.getFullYear(),
+                    currentDate.getMonth(),
+                    undefined,
+                    currentDate.getHours(),
+                    currentDate.getMinutes() + 1 // Expire after one minute
+                )
             };
         }
 
