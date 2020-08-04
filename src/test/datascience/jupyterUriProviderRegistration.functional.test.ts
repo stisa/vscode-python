@@ -33,6 +33,7 @@ class TestUriProvider implements IJupyterUriProvider {
             return {
                 // tslint:disable-next-line: no-http-string
                 baseUrl: 'http://foobar:3000',
+                displayName: 'test',
                 token: '',
                 authorizationHeader: { Bearer: this.currentBearer.toString() },
                 expiration: new Date(Date.now() + 300) // Expire after 300 milliseconds
