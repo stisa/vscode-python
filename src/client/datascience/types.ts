@@ -705,6 +705,11 @@ export interface ICell {
     extraLines?: number[];
 }
 
+// Metadata that should be present in every cell
+export interface ICellDefaultMetadata extends JSONObject {
+    cellId: string;
+}
+
 // CellRange is used as the basis for creating new ICells.
 // Was only intended to aggregate together ranges to create an ICell
 // However the "range" aspect is useful when working with plain text document

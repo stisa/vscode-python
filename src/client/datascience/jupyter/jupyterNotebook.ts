@@ -856,7 +856,8 @@ export class JupyterNotebookBase implements INotebook {
 
     private generateRequest = (
         code: string,
-        silent?: boolean
+        silent?: boolean,
+        metadata?: JSONObject
     ): Kernel.IShellFuture<KernelMessage.IExecuteRequestMsg, KernelMessage.IExecuteReplyMsg> | undefined => {
         //traceInfo(`Executing code in jupyter : ${code}`);
         try {
@@ -870,7 +871,8 @@ export class JupyterNotebookBase implements INotebook {
                           allow_stdin: true, // Allow when silent too in case runStartupCommands asks for a password
                           store_history: !silent // Silent actually means don't output anything. Store_history is what affects execution_count
                       },
-                      silent // Dispose only silent futures. Otherwise update_display_data doesn't finda future for a previous cell.
+                      silent, // Dispose only silent futures. Otherwise update_display_data doesn't find a future for a previous cell.
+                      metadata
                   )
                 : undefined;
         } catch (exc) {
@@ -1095,7 +1097,11 @@ export class JupyterNotebookBase implements INotebook {
                 subscriber.error(this.sessionStartTime, exitError);
                 subscriber.complete(this.sessionStartTime);
             } else {
-                const request = this.generateRequest(concatMultilineStringInput(subscriber.cell.data.source), silent);
+                const request = this.generateRequest(
+                    concatMultilineStringInput(subscriber.cell.data.source),
+                    silent,
+                    subscriber.cell.data.metadata
+                );
 
                 // Transition to the busy stage
                 subscriber.cell.state = CellState.executing;
