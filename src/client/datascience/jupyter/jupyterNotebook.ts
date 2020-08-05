@@ -857,7 +857,8 @@ export class JupyterNotebookBase implements INotebook {
     private generateRequest = (
         code: string,
         silent?: boolean,
-        metadata?: JSONObject
+        // tslint:disable-next-line: no-any
+        metadata?: Record<string, any>
     ): Kernel.IShellFuture<KernelMessage.IExecuteRequestMsg, KernelMessage.IExecuteReplyMsg> | undefined => {
         //traceInfo(`Executing code in jupyter : ${code}`);
         try {
