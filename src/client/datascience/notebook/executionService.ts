@@ -4,6 +4,7 @@
 'use strict';
 
 import { nbformat } from '@jupyterlab/coreutils';
+import { JSONObject } from '@phosphor/coreutils';
 import { inject, injectable } from 'inversify';
 import { Subscription } from 'rxjs';
 import { CancellationToken, CancellationTokenSource } from 'vscode';
@@ -63,7 +64,12 @@ export class NotebookExecutionService implements INotebookExecutionService {
         @inject(INotebookEditorProvider) private readonly editorProvider: INotebookEditorProvider
     ) {}
     @captureTelemetry(Telemetry.ExecuteNativeCell, undefined, true)
-    public async executeCell(document: NotebookDocument, cell: NotebookCell, token: CancellationToken): Promise<void> {
+    public async executeCell(
+        document: NotebookDocument,
+        cell: NotebookCell,
+        token: CancellationToken,
+        metadata: JSONObject
+    ): Promise<void> {
         // Cannot execute empty cells.
         if (cell.document.getText().trim().length === 0) {
             return;
@@ -83,11 +89,15 @@ export class NotebookExecutionService implements INotebookExecutionService {
             }
         });
 
-        await this.executeIndividualCell(notebookAndModel, document, cell, token, stopWatch);
+        await this.executeIndividualCell(notebookAndModel, document, cell, token, stopWatch, metadata);
     }
     @captureTelemetry(Telemetry.ExecuteNativeCell, undefined, true)
     @captureTelemetry(VSCodeNativeTelemetry.RunAllCells, undefined, true)
-    public async executeAllCells(document: NotebookDocument, token: CancellationToken): Promise<void> {
+    public async executeAllCells(
+        document: NotebookDocument,
+        token: CancellationToken,
+        metadata: JSONObject
+    ): Promise<void> {
         const stopWatch = new StopWatch();
         const notebookAndModel = this.getNotebookAndModel(document);
         document.metadata.runState = vscodeNotebookEnums.NotebookRunState.Running;
@@ -138,7 +148,14 @@ export class NotebookExecutionService implements INotebookExecutionService {
                 ) {
                     return;
                 }
-                return this.executeIndividualCell(notebookAndModel, document, cellToExecute, token, stopWatch);
+                return this.executeIndividualCell(
+                    notebookAndModel,
+                    document,
+                    cellToExecute,
+                    token,
+                    stopWatch,
+                    metadata
+                );
             });
         }, Promise.resolve<NotebookCellRunState | undefined>(undefined));
 
@@ -181,7 +198,8 @@ export class NotebookExecutionService implements INotebookExecutionService {
         document: NotebookDocument,
         cell: NotebookCell,
         token: CancellationToken,
-        stopWatch: StopWatch
+        stopWatch: StopWatch,
+        metadata: JSONObject
     ): Promise<NotebookCellRunState | undefined> {
         if (token.isCancellationRequested) {
             return;
@@ -253,7 +271,8 @@ export class NotebookExecutionService implements INotebookExecutionService {
                 document.fileName,
                 0,
                 cell.uri.toString(),
-                false
+                false,
+                metadata
             );
             subscription = observable?.subscribe(
                 (cells) => {

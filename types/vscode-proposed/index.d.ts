@@ -12,6 +12,7 @@ import {
     DocumentSelector,
     ProviderResult
 } from 'vscode';
+import { JSONObject } from '@phosphor/coreutils';
 
 // Copy nb section from https://github.com/microsoft/vscode/blob/master/src/vs/vscode.proposed.d.ts.
 export enum CellKind {
@@ -510,9 +511,9 @@ export interface NotebookKernel {
     description?: string;
     isPreferred?: boolean;
     preloads?: Uri[];
-    executeCell(document: NotebookDocument, cell: NotebookCell): void;
+    executeCell(document: NotebookDocument, cell: NotebookCell, metadata: JSONObject): void;
     cancelCellExecution(document: NotebookDocument, cell: NotebookCell): void;
-    executeAllCells(document: NotebookDocument): void;
+    executeAllCells(document: NotebookDocument, metadata: JSONObject): void;
     cancelAllCellsExecution(document: NotebookDocument): void;
 }
 

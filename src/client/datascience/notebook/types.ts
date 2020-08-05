@@ -3,6 +3,7 @@
 
 'use strict';
 
+import { JSONObject } from '@phosphor/coreutils';
 import type { CancellationToken } from 'vscode';
 import type {
     NotebookCell,
@@ -13,8 +14,13 @@ import type {
 export const INotebookExecutionService = Symbol('INotebookExecutionService');
 export interface INotebookExecutionService {
     cancelPendingExecutions(document: NotebookDocument): void;
-    executeCell(document: NotebookDocument, cell: NotebookCell, token: CancellationToken): Promise<void>;
-    executeAllCells(document: NotebookDocument, token: CancellationToken): Promise<void>;
+    executeCell(
+        document: NotebookDocument,
+        cell: NotebookCell,
+        token: CancellationToken,
+        metadata: JSONObject
+    ): Promise<void>;
+    executeAllCells(document: NotebookDocument, token: CancellationToken, metadata: JSONObject): Promise<void>;
 }
 
 export const INotebookContentProvider = Symbol('INotebookContentProvider');

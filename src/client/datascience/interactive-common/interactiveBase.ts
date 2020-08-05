@@ -37,6 +37,7 @@ import { EXTENSION_ROOT_DIR, isTestExecution, PYTHON_LANGUAGE } from '../../comm
 import { RemoveKernelToolbarInInteractiveWindow, RunByLine } from '../../common/experiments/groups';
 import { traceError, traceInfo, traceWarning } from '../../common/logger';
 
+import { JSONObject } from '@phosphor/coreutils';
 import {
     IConfigurationService,
     IDisposableRegistry,
@@ -571,7 +572,8 @@ export abstract class InteractiveBase extends WebViewHost<IInteractiveWindowMapp
         id?: string,
         data?: nbformat.ICodeCell | nbformat.IRawCell | nbformat.IMarkdownCell,
         debugInfo?: { runByLine: boolean; hashFileName?: string },
-        cancelToken?: CancellationToken
+        cancelToken?: CancellationToken,
+        metadata?: JSONObject
     ): Promise<boolean> {
         traceInfo(`Submitting code for ${this.id}`);
         const stopWatch =
@@ -660,7 +662,7 @@ export abstract class InteractiveBase extends WebViewHost<IInteractiveWindowMapp
                     });
                 }
                 const owningResource = this.owningResource;
-                const observable = this._notebook.executeObservable(code, file, line, id, false);
+                const observable = this._notebook.executeObservable(code, file, line, id, false, { ...metadata });
 
                 // Indicate we executed some code
                 this.executeEvent.fire(code);

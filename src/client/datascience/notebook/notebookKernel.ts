@@ -3,6 +3,7 @@
 
 'use strict';
 
+import { JSONObject } from '@phosphor/coreutils';
 import { inject, injectable } from 'inversify';
 import { CancellationToken, EventEmitter, Uri } from 'vscode';
 import type { NotebookCell, NotebookDocument, NotebookKernel as VSCNotebookKernel } from 'vscode-proposed';
@@ -52,14 +53,14 @@ export class NotebookKernel implements VSCNotebookKernel {
     private cellExecutions = new WeakMap<NotebookCell, MultiCancellationTokenSource>();
     private documentExecutions = new WeakMap<NotebookDocument, MultiCancellationTokenSource>();
     constructor(@inject(INotebookExecutionService) private readonly execution: INotebookExecutionService) {}
-    public executeCell(document: NotebookDocument, cell: NotebookCell) {
+    public executeCell(document: NotebookDocument, cell: NotebookCell, metadata: JSONObject) {
         if (this.cellExecutions.has(cell)) {
             return;
         }
         const source = new MultiCancellationTokenSource();
         this.cellExecutions.set(cell, source);
         this.execution
-            .executeCell(document, cell, source.token)
+            .executeCell(document, cell, source.token, metadata)
             .finally(() => {
                 if (this.cellExecutions.get(cell) === source) {
                     this.cellExecutions.delete(cell);
@@ -67,14 +68,14 @@ export class NotebookKernel implements VSCNotebookKernel {
             })
             .catch(noop);
     }
-    public executeAllCells(document: NotebookDocument) {
+    public executeAllCells(document: NotebookDocument, metadata: JSONObject) {
         if (this.documentExecutions.has(document)) {
             return;
         }
         const source = new MultiCancellationTokenSource();
         this.documentExecutions.set(document, source);
         this.execution
-            .executeAllCells(document, source.token)
+            .executeAllCells(document, source.token, metadata)
             .finally(() => {
                 if (this.documentExecutions.get(document) === source) {
                     this.documentExecutions.delete(document);

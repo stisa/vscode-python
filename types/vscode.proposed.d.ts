@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+import { JSONObject } from '@phosphor/coreutils';
+
 // Copy nb section from https://github.com/microsoft/vscode/blob/master/src/vs/vscode.proposed.d.ts.
 declare module 'vscode' {
     export enum CellKind {
@@ -499,9 +501,9 @@ declare module 'vscode' {
         description?: string;
         isPreferred?: boolean;
         preloads?: Uri[];
-        executeCell(document: NotebookDocument, cell: NotebookCell): void;
+        executeCell(document: NotebookDocument, cell: NotebookCell, metadata: JSONObject): void;
         cancelCellExecution(document: NotebookDocument, cell: NotebookCell): void;
-        executeAllCells(document: NotebookDocument): void;
+        executeAllCells(document: NotebookDocument, metadata: JSONObject): void;
         cancelAllCellsExecution(document: NotebookDocument): void;
     }
 

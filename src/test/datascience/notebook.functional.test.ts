@@ -890,7 +890,7 @@ suite('DataScience notebook tests', () => {
                 let finishedBefore = false;
                 const finishedPromise = createDeferred();
                 let error;
-                const observable = notebook!.executeObservable(code, Uri.file('foo.py').fsPath, 0, uuid(), false);
+                const observable = notebook!.executeObservable(code, Uri.file('foo.py').fsPath, 0, uuid(), false, {});
                 observable.subscribe(
                     (c) => {
                         if (c.length > 0 && c[0].state === CellState.error) {

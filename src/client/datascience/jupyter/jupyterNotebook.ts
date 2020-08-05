@@ -323,13 +323,14 @@ export class JupyterNotebookBase implements INotebook {
         line: number,
         id: string,
         cancelToken?: CancellationToken,
-        silent?: boolean
+        silent?: boolean,
+        metadata?: JSONObject
     ): Promise<ICell[]> {
         // Create a deferred that we'll fire when we're done
         const deferred = createDeferred<ICell[]>();
 
         // Attempt to evaluate this cell in the jupyter notebook.
-        const observable = this.executeObservable(code, file, line, id, silent);
+        const observable = this.executeObservable(code, file, line, id, silent, metadata);
         let output: ICell[];
 
         observable.subscribe(
@@ -398,11 +399,12 @@ export class JupyterNotebookBase implements INotebook {
         file: string,
         line: number,
         id: string,
-        silent: boolean = false
+        silent: boolean = false,
+        metadata: JSONObject = {}
     ): Observable<ICell[]> {
         // Create an observable and wrap the result so we can time it.
         const stopWatch = new StopWatch();
-        const result = this.executeObservableImpl(code, file, line, id, silent);
+        const result = this.executeObservableImpl(code, file, line, id, silent, metadata);
         return new Observable<ICell[]>((subscriber) => {
             result.subscribe(
                 (cells) => {
@@ -814,7 +816,8 @@ export class JupyterNotebookBase implements INotebook {
         file: string,
         line: number,
         id: string,
-        silent?: boolean
+        silent?: boolean,
+        metadata?: JSONObject
     ): Observable<ICell[]> {
         // If we have a session, execute the code now.
         if (this.session) {
@@ -839,7 +842,7 @@ export class JupyterNotebookBase implements INotebook {
                 // Either markdown or or code
                 return this.combineObservables(
                     cells[0].data.cell_type === 'code'
-                        ? this.executeCodeObservable(cells[0], silent)
+                        ? this.executeCodeObservable(cells[0], silent, metadata)
                         : this.executeMarkdownObservable(cells[0])
                 );
             }
@@ -1087,7 +1090,7 @@ export class JupyterNotebookBase implements INotebook {
     }
 
     // tslint:disable-next-line: max-func-body-length
-    private handleCodeRequest = (subscriber: CellSubscriber, silent?: boolean) => {
+    private handleCodeRequest = (subscriber: CellSubscriber, silent?: boolean, metadata?: JSONObject) => {
         // Generate a new request if we still can
         if (subscriber.isValid(this.sessionStartTime)) {
             // Double check process is still running
@@ -1097,11 +1100,10 @@ export class JupyterNotebookBase implements INotebook {
                 subscriber.error(this.sessionStartTime, exitError);
                 subscriber.complete(this.sessionStartTime);
             } else {
-                const request = this.generateRequest(
-                    concatMultilineStringInput(subscriber.cell.data.source),
-                    silent,
-                    subscriber.cell.data.metadata
-                );
+                const request = this.generateRequest(concatMultilineStringInput(subscriber.cell.data.source), silent, {
+                    ...metadata,
+                    ...subscriber.cell.data.metadata
+                });
 
                 // Transition to the busy stage
                 subscriber.cell.state = CellState.executing;
@@ -1176,7 +1178,7 @@ export class JupyterNotebookBase implements INotebook {
         }
     };
 
-    private executeCodeObservable(cell: ICell, silent?: boolean): Observable<ICell> {
+    private executeCodeObservable(cell: ICell, silent?: boolean, metadata?: JSONObject): Observable<ICell> {
         return new Observable<ICell>((subscriber) => {
             // Tell our listener. NOTE: have to do this asap so that markdown cells don't get
             // run before our cells.
@@ -1198,7 +1200,7 @@ export class JupyterNotebookBase implements INotebook {
             this.logPreCode(cell, isSilent)
                 .then(() => {
                     // Now send our real request. This should call back on the cellsubscriber when it's done.
-                    this.handleCodeRequest(cellSubscriber, silent);
+                    this.handleCodeRequest(cellSubscriber, silent, metadata);
                 })
                 .ignoreErrors();
         });

@@ -117,9 +117,9 @@ suite('DataScience - VSCode Notebook - (fake execution) (Clearing Output)', func
             cellObservableResult = new Subject<ICell[]>();
             cell2ObservableResult = new Subject<ICell[]>();
             reset(nb);
-            when(nb.executeObservable(anything(), anything(), anything(), anything(), anything())).thenReturn(
-                cellObservableResult.asObservable()
-            );
+            when(
+                nb.executeObservable(anything(), anything(), anything(), anything(), anything(), anything())
+            ).thenReturn(cellObservableResult.asObservable());
             await deleteAllCellsAndWait();
         });
         teardown(() => {

@@ -78,7 +78,7 @@ suite('DataScience - VSCode Notebook - Restart/Interrupt/Cancel/Errors (slow)', 
         showInformationMessage.resolves(); // Ignore message to restart kernel.
         disposables.push({ dispose: () => showInformationMessage.restore() });
 
-        const promise = executionService.executeCell(vscEditor.document, cell, cancellation.token);
+        const promise = executionService.executeCell(vscEditor.document, cell, cancellation.token, {});
         const deferred = createDeferredFromPromise(promise);
 
         // Wait for cell to get busy.

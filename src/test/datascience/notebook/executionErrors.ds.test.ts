@@ -59,7 +59,9 @@ suite('DataScience - VSCode Notebook - Errors in Execution', function () {
 
         // Run a cell (with a mock notebook).
         const error = new Error('MyError');
-        when(notebook.executeObservable(anything(), anything(), anything(), anything(), anything())).thenThrow(error);
+        when(
+            notebook.executeObservable(anything(), anything(), anything(), anything(), anything(), anything())
+        ).thenThrow(error);
         await commands.executeCommand('notebook.execute');
 
         await waitForCondition(async () => handleErrorStub.calledOnce, 5_000, 'handleError not called');
@@ -74,9 +76,9 @@ suite('DataScience - VSCode Notebook - Errors in Execution', function () {
         const error = new Error('MyError');
         const subject = new Subject<ICell[]>();
         subject.error(error);
-        when(notebook.executeObservable(anything(), anything(), anything(), anything(), anything())).thenReturn(
-            subject
-        );
+        when(
+            notebook.executeObservable(anything(), anything(), anything(), anything(), anything(), anything())
+        ).thenReturn(subject);
 
         // Execute cells (it should throw an error).
         await commands.executeCommand('notebook.execute');
