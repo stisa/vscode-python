@@ -12,18 +12,7 @@ import { IDataScienceSettings, Resource } from '../common/types';
 import { noop } from '../common/utils/misc';
 import { CellMatcher } from './cellMatcher';
 import { Identifiers } from './constants';
-import { CellState, ICell, ICellDefaultMetadata, ICellRange } from './types';
-
-// Updates cell.metadata with the default metadata.
-// Overrides existing fields.
-// Returns the updated cell.
-function updateWithDefaultMetadata(cell: ICell): ICell {
-    const defaultMetadata: ICellDefaultMetadata = {
-        cellId: cell.id
-    };
-    cell.data.metadata = { ...cell.data.metadata, ...defaultMetadata };
-    return cell;
-}
+import { CellState, ICell, ICellRange } from './types';
 
 function generateCodeCell(
     code: string[],
@@ -33,23 +22,23 @@ function generateCodeCell(
     magicCommandsAsComments: boolean
 ): ICell {
     // Code cells start out with just source and no outputs.
-    return updateWithDefaultMetadata({
+    return {
         data: createCodeCell(code, magicCommandsAsComments),
         id: id,
         file: file,
         line: line,
         state: CellState.init
-    });
+    };
 }
 
 function generateMarkdownCell(code: string[], file: string, line: number, id: string): ICell {
-    return updateWithDefaultMetadata({
+    return {
         id: id,
         file: file,
         line: line,
         state: CellState.finished,
         data: createMarkdownCell(code)
-    });
+    };
 }
 
 export function getCellResource(cell: ICell): Resource {

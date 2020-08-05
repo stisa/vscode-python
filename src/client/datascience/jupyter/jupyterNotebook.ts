@@ -1097,11 +1097,10 @@ export class JupyterNotebookBase implements INotebook {
                 subscriber.error(this.sessionStartTime, exitError);
                 subscriber.complete(this.sessionStartTime);
             } else {
-                const request = this.generateRequest(
-                    concatMultilineStringInput(subscriber.cell.data.source),
-                    silent,
-                    subscriber.cell.data.metadata
-                );
+                const request = this.generateRequest(concatMultilineStringInput(subscriber.cell.data.source), silent, {
+                    ...subscriber.cell.data.metadata,
+                    ...{ cellId: subscriber.cell.id }
+                });
 
                 // Transition to the busy stage
                 subscriber.cell.state = CellState.executing;
